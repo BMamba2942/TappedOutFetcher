@@ -24,6 +24,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 
 public class Main extends Application {
@@ -41,31 +42,46 @@ public class Main extends Application {
             String line;
             while((line = in.readLine()) != null) {
                 sb.append(line + "\n");
-                System.out.println(line);
             }
             in.close();
         } catch (MalformedURLException e) {
             e.printStackTrace();
-            System.out.println("Bad form");
         } catch (IOException e) {
             e.printStackTrace();
-            System.out.println("Bad IO");
         }
-        System.out.println(url);
         return sb.toString();
     }
 
-    private String _parseDeck(String deckInCsv) {
-        String[] onePerLine = deckInCsv.split("\n");
-        return Arrays.stream(onePerLine).skip(1).map(l -> {
-            System.out.println(l);
-            if (l.contains(",")) {
-                String[] fields = l.split(",");
-                return String.format("%s %s", fields[1], fields[2]);
-            } else {
-                return "";
+    private String[] _splitOnLineEndings(String deckInCsv) {
+        return deckInCsv.split("\n");
+    }
+
+    private String _parseBoard(List<String> board) {
+        return board.stream().map(l -> {
+            String[] fields;
+            String cardName = "";
+            if(l.contains("\"")) {
+                int firstIndex = l.indexOf("\"");
+                int secondIndex = l.indexOf("\"", firstIndex + 1);
+                cardName = l.substring(firstIndex+1, secondIndex);
             }
+            fields = l.split(",");
+            return cardName.length() == 0 ? String.format("%s %s", fields[1], fields[2]) : String.format("%s %s", fields[1], cardName);
         }).filter(s -> s.length() > 0).distinct().reduce("", (acc, curr) -> acc + curr + "\n");
+
+    }
+
+    private String _parseDeck(String deckInCsv) {
+        StringBuilder sb = new StringBuilder();
+        String[] onePerLine = this._splitOnLineEndings(deckInCsv);
+        List<String> sideBoard = Arrays.stream(onePerLine).skip(1).filter(l -> l.contains("side")).collect(Collectors.toList());
+        List<String> mainBoard = Arrays.stream(onePerLine).skip(1).filter(l -> l.contains("main")).collect(Collectors.toList());
+        String mainParsed = this._parseBoard(mainBoard);
+        String sideParsed = this._parseBoard(sideBoard);
+        sb.append(mainParsed);
+        sb.append("Sideboard\n");
+        sb.append(sideParsed);
+        return sb.toString();
     }
 
     @Override
